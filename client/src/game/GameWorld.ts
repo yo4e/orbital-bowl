@@ -111,7 +111,7 @@ export class GameWorld {
     this.ball.isVisible = true;
     this.trailPoints = [START.clone()];
     this.trail.isVisible = true;
-    const radial = START.normalize();
+    const radial = START.clone().normalize();
     const tangent = Vector3.Cross(radial, Vector3.Up()).normalize();
     const lift = Math.sin((this.settings.angle * Math.PI) / 180) * 1.05;
     this.ballVelocity = tangent.scale(this.settings.velocity).add(new Vector3(0, lift, 0));
@@ -321,14 +321,14 @@ export class GameWorld {
   private simulatePath() {
     const points: Vector3[] = [];
     let position = START.clone();
-    const radial = START.normalize();
+    const radial = START.clone().normalize();
     let velocity = Vector3.Cross(radial, Vector3.Up()).normalize().scale(this.settings.velocity);
     velocity.y += Math.sin((this.settings.angle * Math.PI) / 180) * 1.05;
     const step = 1 / 52;
     for (let index = 0; index < 230; index += 1) {
       points.push(position.clone());
       const distance = position.length();
-      const acceleration = position.normalize().scale(-145 * this.settings.gravity / Math.max(distance * distance, 1));
+      const acceleration = position.clone().normalize().scale(-145 * this.settings.gravity / Math.max(distance * distance, 1));
       velocity = velocity.add(acceleration.scale(step));
       position = position.add(velocity.scale(step));
       if (distance < ASTEROID_RADIUS + BALL_RADIUS + 0.18 || distance > 19) break;
@@ -357,14 +357,14 @@ export class GameWorld {
   private updateFlight(delta: number) {
     this.flightTime += delta;
     const distance = this.ball.position.length();
-    const normal = this.ball.position.normalize();
+    const normal = this.ball.position.clone().normalize();
     const acceleration = normal.scale(-145 * this.settings.gravity / Math.max(distance * distance, 1));
     this.ballVelocity = this.ballVelocity.add(acceleration.scale(delta));
     this.ball.position.addInPlace(this.ballVelocity.scale(delta));
     this.ball.rotation.x += this.ballVelocity.length() * delta * 2.2;
     const floorDistance = ASTEROID_RADIUS + BALL_RADIUS + 0.1;
     if (this.ball.position.length() < floorDistance) {
-      const surfaceNormal = this.ball.position.normalize();
+      const surfaceNormal = this.ball.position.clone().normalize();
       this.ball.position.copyFrom(surfaceNormal.scale(floorDistance));
       const radialSpeed = Vector3.Dot(this.ballVelocity, surfaceNormal);
       this.ballVelocity = this.ballVelocity.subtract(surfaceNormal.scale(radialSpeed * 1.7)).scale(0.76);
