@@ -26,6 +26,7 @@ const PHYSICS_STEP = 1 / 52;
 const STORAGE_KEY = "orbital-bowl-progress-v1";
 const GOLD = new Color3(0.95, 0.76, 0.44);
 const VIOLET = new Color3(0.79, 0.66, 0.84);
+const DEFAULT_SETTINGS: GameSettings = { angle: 0, velocity: 4.76, gravity: 1 };
 
 interface DifficultyProfile {
   label: "GUIDED" | "CALIBRATED" | "PRECISION";
@@ -55,7 +56,7 @@ export class GameWorld {
   private readonly asteroid: Mesh;
   private readonly glow: GlowLayer;
   private readonly stars: Mesh[] = [];
-  private settings: GameSettings = { angle: 0, velocity: 4.76, gravity: 1 };
+  private settings: GameSettings = { ...DEFAULT_SETTINGS };
   private phase: GamePhase = "aim";
   private ballVelocity = Vector3.Zero();
   private trailPoints: Vector3[] = [];
@@ -72,6 +73,10 @@ export class GameWorld {
   private progress = loadProgress();
   private sound = new Soundscape();
   private demo: boolean;
+  private hasLaunched = false;
+  private settingsTouched = false;
+  private firstLaunchUsesDefaults = false;
+  private activeDifficulty: DifficultyProfile = { label: "GUIDED", hitRadius: 0.94, hint: "初期設定のままなら、最初の1本を保証します。" };
 
   constructor(
     private readonly scene: Scene,
@@ -102,11 +107,13 @@ export class GameWorld {
 
   setSettings(next: Partial<GameSettings>) {
     if (this.phase !== "aim") return;
+    const previous = this.settings;
     this.settings = {
       angle: clamp(next.angle ?? this.settings.angle, -28, 28),
       velocity: clamp(next.velocity ?? this.settings.velocity, 4.35, 6.8),
       gravity: clamp(next.gravity ?? this.settings.gravity, 0.72, 1.35),
     };
+    if (this.settings.angle !== previous.angle || this.settings.velocity !== previous.velocity || this.settings.gravity !== previous.gravity) this.settingsTouched = true;
     this.refreshPreview();
     this.emitHud();
   }
@@ -114,11 +121,14 @@ export class GameWorld {
   launch(fromDemo = false) {
     if (this.phase !== "aim") return;
     if (!fromDemo) this.sound.unlock();
-    const difficulty = this.getDifficulty();
+    const difficulty = this.getAimDifficulty();
+    this.firstLaunchUsesDefaults = !this.hasLaunched && !this.settingsTouched && this.usesDefaultSettings();
+    this.activeDifficulty = difficulty;
+    this.hasLaunched = true;
     this.phase = "flight";
     this.pinsAtLaunch = this.pins.filter((pin) => pin.standing).length;
     this.pinsFelledThisThrow = 0;
-    this.status = difficulty.label === "GUIDED" ? "GUIDED ORBIT — 最初のピン列を捕捉中" : "軌道を見守る";
+    this.status = this.firstLaunchUsesDefaults ? "GUIDED HIT — 初期軌道で最初のピンを保証" : "軌道を見守る";
     this.flightTime = 0;
     this.physicsAccumulator = 0;
     this.ball.position.copyFrom(START);
@@ -135,13 +145,17 @@ export class GameWorld {
 
   resetRound() {
     this.phase = "aim";
-    this.settings = { angle: 0, velocity: 4.76, gravity: 1 };
+    this.settings = { ...DEFAULT_SETTINGS };
     this.score = 0;
     this.throwNumber = 1;
     this.pinsAtLaunch = 10;
     this.pinsFelledThisThrow = 0;
     this.flightTime = 0;
     this.physicsAccumulator = 0;
+    this.hasLaunched = false;
+    this.settingsTouched = false;
+    this.firstLaunchUsesDefaults = false;
+    this.activeDifficulty = { label: "GUIDED", hitRadius: 0.94, hint: "初期設定のままなら、最初の1本を保証します。" };
     this.status = "新しい軌道を描く";
     this.ball.position.copyFrom(START);
     this.ball.isVisible = true;
@@ -403,8 +417,9 @@ export class GameWorld {
     for (const pin of this.pins) {
       if (!pin.standing) continue;
       const distanceToPin = Vector3.Distance(this.ball.position, pin.root.position.add(new Vector3(0, 0.34, 0)));
-      if (distanceToPin < this.getDifficulty().hitRadius) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
+      if (distanceToPin < this.activeDifficulty.hitRadius) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
     }
+    if (this.firstLaunchUsesDefaults && this.pinsFelledThisThrow === 0 && this.flightTime >= 2.75) this.guaranteeFirstHit();
     if (this.flightTime > 9.5 || this.ball.position.length() > 22 || this.ballVelocity.length() < 0.15) this.finishThrow();
   }
 
@@ -430,6 +445,16 @@ export class GameWorld {
       window.setTimeout(() => { this.glow.intensity = 0.4; }, 800);
       this.finishThrow(1.35);
     }
+    this.emitHud();
+  }
+
+  private guaranteeFirstHit() {
+    const closestPin = this.pins
+      .filter((pin) => pin.standing)
+      .sort((a, b) => Vector3.DistanceSquared(this.ball.position, a.root.position) - Vector3.DistanceSquared(this.ball.position, b.root.position))[0];
+    if (!closestPin) return;
+    this.knockPin(closestPin, this.ball.position.subtract(closestPin.root.position));
+    this.status = "GUIDED HIT — 最初の軌道がピンを捉えた";
     this.emitHud();
   }
 
@@ -487,11 +512,21 @@ export class GameWorld {
     this.callbacks.onHudChange(state);
   }
 
+  private usesDefaultSettings() {
+    return this.settings.angle === DEFAULT_SETTINGS.angle
+      && this.settings.velocity === DEFAULT_SETTINGS.velocity
+      && this.settings.gravity === DEFAULT_SETTINGS.gravity;
+  }
+
   private getDifficulty(): DifficultyProfile {
-    if (this.throwNumber === 1 && this.score === 0) {
-      return { label: "GUIDED", hitRadius: 0.94, hint: "初回は広い軌道補正。近いピンをつかまえます。" };
+    return this.phase === "aim" ? this.getAimDifficulty() : this.activeDifficulty;
+  }
+
+  private getAimDifficulty(): DifficultyProfile {
+    if (!this.hasLaunched && !this.settingsTouched && this.usesDefaultSettings()) {
+      return { label: "GUIDED", hitRadius: 0.94, hint: "初期設定のままなら、最初の1本を保証します。" };
     }
-    if (this.throwNumber === 2) {
+    if (this.throwNumber <= 2) {
       return { label: "CALIBRATED", hitRadius: 0.78, hint: "補正は控えめ。ANGLEで列を選びましょう。" };
     }
     return { label: "PRECISION", hitRadius: 0.64, hint: "最後は精密軌道。VELOCITYも試してみましょう。" };

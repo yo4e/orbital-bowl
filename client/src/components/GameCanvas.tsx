@@ -83,7 +83,7 @@ export default function GameCanvas() {
       {firstOrbit && <section className="tutorial-beacon" aria-label="最初の投球ガイド">
         <p>FIRST ORBIT / RECOMMENDED</p>
         <h2>最初の軌道は、<em>ピンをつかまえる。</em></h2>
-        <span>GUIDED補正が有効です。まずは <kbd>SPACE</kbd>。<br />次の投球から、少しずつ精密になります。</span>
+        <span>ゲージは触らず、まずは <kbd>SPACE</kbd>。<br />初期設定なら最初の1本を保証します。</span>
         <button onClick={() => handleRef.current?.setSettings({ angle: 0, velocity: 4.76, gravity: 1 })}>標準軌道に戻す</button>
       </section>}
 
