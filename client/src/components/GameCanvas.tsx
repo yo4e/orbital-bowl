@@ -5,7 +5,7 @@ import { createGameScene, type GameHandle } from "@/game/scene";
 import type { GameHudState } from "@/game/types";
 
 const initialHud: GameHudState = {
-  angle: 0, velocity: 4.76, gravity: 1, phase: "aim", throwNumber: 1, pinsStanding: 10, pinsFelledThisThrow: 0,
+  angle: 0, velocity: 4.76, gravity: 1, phase: "aim", throwNumber: 1, pinsStanding: 10, pinsFelledThisThrow: 0, difficultyLabel: "GUIDED", difficultyHint: "初回は広い軌道補正。近いピンをつかまえます。",
   score: 0, bestScore: 0, soundEnabled: true, status: "観測窓を開いています", launchReady: false,
 };
 
@@ -72,6 +72,7 @@ export default function GameCanvas() {
 
       <section className="instrument" aria-label="投球設定">
         <div className="instrument-head"><span>ORBITAL SETTINGS</span><em>{hud.phase === "aim" ? "AIM" : hud.phase.toUpperCase()}</em></div>
+        <div className={`difficulty-meter difficulty-${hud.difficultyLabel.toLowerCase()}`}><b>{hud.difficultyLabel}</b><span>{hud.difficultyHint}</span></div>
         <Meter label="ANGLE" value={hud.angle} min={-28} max={28} step={1} unit="°" disabled={locked} onChange={(angle) => handleRef.current?.setSettings({ angle })} />
         <Meter label="VELOCITY" value={hud.velocity} min={4.35} max={6.8} step={0.01} unit="" disabled={locked} onChange={(velocity) => handleRef.current?.setSettings({ velocity })} />
         <Meter label="GRAVITY" value={hud.gravity} min={0.72} max={1.35} step={0.01} unit="G" disabled={locked} onChange={(gravity) => handleRef.current?.setSettings({ gravity })} />
@@ -81,8 +82,8 @@ export default function GameCanvas() {
 
       {firstOrbit && <section className="tutorial-beacon" aria-label="最初の投球ガイド">
         <p>FIRST ORBIT / RECOMMENDED</p>
-        <h2>予測線の先で、<em>ピンが待つ。</em></h2>
-        <span>まずは標準軌道のまま <kbd>SPACE</kbd>。<br />微調整は DRAG と SCROLL から。</span>
+        <h2>最初の軌道は、<em>ピンをつかまえる。</em></h2>
+        <span>GUIDED補正が有効です。まずは <kbd>SPACE</kbd>。<br />次の投球から、少しずつ精密になります。</span>
         <button onClick={() => handleRef.current?.setSettings({ angle: 0, velocity: 4.76, gravity: 1 })}>標準軌道に戻す</button>
       </section>}
 

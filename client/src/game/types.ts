@@ -12,6 +12,8 @@ export interface GameHudState extends GameSettings {
   throwNumber: number;
   pinsStanding: number;
   pinsFelledThisThrow: number;
+  difficultyLabel: string;
+  difficultyHint: string;
   score: number;
   bestScore: number;
   soundEnabled: boolean;

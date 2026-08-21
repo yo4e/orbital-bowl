@@ -27,6 +27,12 @@ const STORAGE_KEY = "orbital-bowl-progress-v1";
 const GOLD = new Color3(0.95, 0.76, 0.44);
 const VIOLET = new Color3(0.79, 0.66, 0.84);
 
+interface DifficultyProfile {
+  label: "GUIDED" | "CALIBRATED" | "PRECISION";
+  hitRadius: number;
+  hint: string;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -108,10 +114,11 @@ export class GameWorld {
   launch(fromDemo = false) {
     if (this.phase !== "aim") return;
     if (!fromDemo) this.sound.unlock();
+    const difficulty = this.getDifficulty();
     this.phase = "flight";
     this.pinsAtLaunch = this.pins.filter((pin) => pin.standing).length;
     this.pinsFelledThisThrow = 0;
-    this.status = this.throwNumber === 1 && this.score === 0 ? "標準軌道 — ピン列へ向かう" : "軌道を見守る";
+    this.status = difficulty.label === "GUIDED" ? "GUIDED ORBIT — 最初のピン列を捕捉中" : "軌道を見守る";
     this.flightTime = 0;
     this.physicsAccumulator = 0;
     this.ball.position.copyFrom(START);
@@ -396,7 +403,7 @@ export class GameWorld {
     for (const pin of this.pins) {
       if (!pin.standing) continue;
       const distanceToPin = Vector3.Distance(this.ball.position, pin.root.position.add(new Vector3(0, 0.34, 0)));
-      if (distanceToPin < 0.72) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
+      if (distanceToPin < this.getDifficulty().hitRadius) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
     }
     if (this.flightTime > 9.5 || this.ball.position.length() > 22 || this.ballVelocity.length() < 0.15) this.finishThrow();
   }
@@ -432,7 +439,7 @@ export class GameWorld {
     this.resultTimer = Math.max(delay, 2.7);
     this.pinsFelledThisThrow = this.pinsAtLaunch - this.pins.filter((pin) => pin.standing).length;
     if (this.pins.every((pin) => !pin.standing)) this.status = "STRIKE — すべてのピンが静かに倒れた";
-    else if (this.pinsFelledThisThrow > 0) this.status = `${this.pinsFelledThisThrow} PINS DOWN — 次の軌道を選ぶ`;
+    else if (this.pinsFelledThisThrow > 0) this.status = `${this.pinsFelledThisThrow} PINS DOWN — 次は少し精密に`;
     else this.status = "NO HIT — VELOCITYを少し上げてみる";
     this.emitHud();
   }
@@ -453,7 +460,7 @@ export class GameWorld {
     }
     this.throwNumber += 1;
     this.phase = "aim";
-    this.status = this.pinsFelledThisThrow > 0 ? "ピンが揺れた — 次の軌道を微調整する" : "VELOCITYを少し上げて、もう一度試す";
+    this.status = this.pinsFelledThisThrow > 0 ? `${this.getDifficulty().label} — 次の軌道を微調整する` : "VELOCITYを少し上げて、もう一度試す";
     this.ball.position.copyFrom(START);
     this.ball.isVisible = true;
     this.refreshPreview();
@@ -462,12 +469,15 @@ export class GameWorld {
   }
 
   private emitHud() {
+    const difficulty = this.getDifficulty();
     const state: GameHudState = {
       ...this.settings,
       phase: this.phase,
       throwNumber: this.throwNumber,
       pinsStanding: this.pins.filter((pin) => pin.standing).length,
       pinsFelledThisThrow: this.pinsFelledThisThrow,
+      difficultyLabel: difficulty.label,
+      difficultyHint: difficulty.hint,
       score: this.score,
       bestScore: this.progress.highScore,
       soundEnabled: this.sound.enabled,
@@ -475,6 +485,16 @@ export class GameWorld {
       launchReady: this.phase === "aim",
     };
     this.callbacks.onHudChange(state);
+  }
+
+  private getDifficulty(): DifficultyProfile {
+    if (this.throwNumber === 1 && this.score === 0) {
+      return { label: "GUIDED", hitRadius: 0.94, hint: "初回は広い軌道補正。近いピンをつかまえます。" };
+    }
+    if (this.throwNumber === 2) {
+      return { label: "CALIBRATED", hitRadius: 0.78, hint: "補正は控えめ。ANGLEで列を選びましょう。" };
+    }
+    return { label: "PRECISION", hitRadius: 0.64, hint: "最後は精密軌道。VELOCITYも試してみましょう。" };
   }
 
   private saveProgress() {

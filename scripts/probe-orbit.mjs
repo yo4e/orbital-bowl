@@ -31,3 +31,16 @@ const nearest = pinCenters.map((pin, pinIndex) => ({
   distance: Math.min(...points.map((point) => Math.hypot(point.x - pin.x, point.y - pin.y, point.z - pin.z))),
 }));
 console.log(JSON.stringify({ nearest }, null, 2));
+
+const difficultyProfiles = {
+  GUIDED: 0.94,
+  CALIBRATED: 0.78,
+  PRECISION: 0.64,
+};
+const reachablePins = Object.fromEntries(
+  Object.entries(difficultyProfiles).map(([label, hitRadius]) => [
+    label,
+    nearest.filter((pin) => pin.distance < hitRadius).map((pin) => pin.pinIndex),
+  ]),
+);
+console.log(JSON.stringify({ difficultyProfiles, reachablePins }, null, 2));
