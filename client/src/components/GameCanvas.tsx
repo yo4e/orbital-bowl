@@ -5,7 +5,7 @@ import { createGameScene, type GameHandle } from "@/game/scene";
 import type { GameHudState } from "@/game/types";
 
 const initialHud: GameHudState = {
-  angle: 0, velocity: 4.76, gravity: 1, phase: "aim", throwNumber: 1, pinsStanding: 10,
+  angle: 0, velocity: 4.76, gravity: 1, phase: "aim", throwNumber: 1, pinsStanding: 10, pinsFelledThisThrow: 0,
   score: 0, bestScore: 0, soundEnabled: true, status: "観測窓を開いています", launchReady: false,
 };
 
@@ -50,6 +50,8 @@ export default function GameCanvas() {
   }, []);
 
   const locked = !hud.launchReady;
+  const firstOrbit = hud.phase === "aim" && hud.throwNumber === 1 && hud.score === 0;
+  const resultVisible = hud.phase === "result" || hud.phase === "complete";
   return (
     <main className="game-shell" aria-label="ORBITAL BOWL game">
       <canvas ref={canvasRef} className="game-canvas" style={{ touchAction: "none" }} aria-label="宇宙ボウリングの3Dゲーム画面" />
@@ -76,6 +78,19 @@ export default function GameCanvas() {
         <button className="launch-button" onClick={() => handleRef.current?.launch()} disabled={!hud.launchReady}><span>SPACE</span>{hud.phase === "complete" ? "ROUND COMPLETE" : "LAUNCH"}</button>
         <button className="reset-button" onClick={() => handleRef.current?.resetRound()}>もう一度、軌道を描く</button>
       </section>
+
+      {firstOrbit && <section className="tutorial-beacon" aria-label="最初の投球ガイド">
+        <p>FIRST ORBIT / RECOMMENDED</p>
+        <h2>予測線の先で、<em>ピンが待つ。</em></h2>
+        <span>まずは標準軌道のまま <kbd>SPACE</kbd>。<br />微調整は DRAG と SCROLL から。</span>
+        <button onClick={() => handleRef.current?.setSettings({ angle: 0, velocity: 4.76, gravity: 1 })}>標準軌道に戻す</button>
+      </section>}
+
+      {resultVisible && <section className={`throw-result ${hud.pinsFelledThisThrow > 0 ? "has-hit" : "no-hit"}`} aria-live="polite">
+        <p>THROW {hud.throwNumber} / RESULT</p>
+        <strong>{hud.pinsFelledThisThrow}<i> PINS</i></strong>
+        <span>{hud.pinsFelledThisThrow > 0 ? "光の場所を覚えて、次の一投へ。" : "VELOCITY を少し上げて、軌道を外へ。"}</span>
+      </section>}
 
       <div className="status-line" role="status"><span className={hud.phase === "flight" ? "pulse-dot" : "static-dot"} />{hud.status}</div>
       <aside className="gesture-tip"><span>DRAG</span> angle <b>·</b> <span>SCROLL</span> velocity</aside>

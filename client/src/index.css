@@ -48,6 +48,20 @@ kbd { font-family: "Space Mono", monospace; color: #f3d6bb; border-bottom: 1px s
 .launch-button:disabled { cursor: not-allowed; opacity: .53; }
 .reset-button { width: 100%; border: 0; padding: 10px 4px 1px; background: transparent; color: #d5b9d2; text-align: left; font: 10px "Manrope", sans-serif; cursor: pointer; transition: color 160ms ease; }
 .reset-button:hover { color: #fff1dd; }
+.tutorial-beacon { position: absolute; z-index: 3; left: clamp(320px, 31vw, 430px); bottom: clamp(30px, 7.5vh, 92px); width: min(292px, 26vw); padding: 14px 0 0 18px; border-left: 1px solid rgba(239, 208, 167, .58); background: linear-gradient(90deg, rgba(14, 10, 31, .72), transparent); color: #f7e7ed; animation: beacon-in 500ms cubic-bezier(.23,1,.32,1) both; }
+.tutorial-beacon p, .throw-result p { margin: 0 0 8px; color: #e6b28b; font: 8px "Space Mono", monospace; letter-spacing: .15em; }
+.tutorial-beacon h2 { max-width: 250px; margin: 0; color: #fff5f8; font: 400 clamp(18px, 1.8vw, 23px)/1.05 "DM Serif Display", serif; }
+.tutorial-beacon h2 em { color: #e9bfd7; font-style: italic; }
+.tutorial-beacon > span { display: block; margin-top: 9px; color: rgba(245, 225, 238, .76); font: 10px/1.65 "Manrope", sans-serif; }
+.tutorial-beacon button { margin-top: 11px; padding: 0 0 4px; border: 0; border-bottom: 1px solid rgba(239, 208, 167, .55); background: transparent; color: #f3d7b6; font: 9px "Space Mono", monospace; letter-spacing: .08em; transition: color 160ms ease, transform 160ms cubic-bezier(.23,1,.32,1); }
+.tutorial-beacon button:hover { color: #fff4e6; transform: translateX(3px); }
+.tutorial-beacon button:active { transform: scale(.97); }
+.throw-result { position: absolute; z-index: 3; top: clamp(176px, 23vh, 210px); right: clamp(17px, 3.2vw, 48px); width: min(232px, 26vw); padding: 15px 0 13px 16px; border-left: 1px solid rgba(235, 192, 152, .7); border-bottom: 1px solid rgba(231, 208, 238, .22); background: linear-gradient(90deg, rgba(20, 13, 39, .8), rgba(12, 9, 25, .22)); backdrop-filter: blur(9px); animation: result-in 260ms cubic-bezier(.23,1,.32,1) both; }
+.throw-result strong { display: block; color: #fff0e3; font: 400 38px/1 "DM Serif Display", serif; }
+.throw-result strong i { color: #e0b6d0; font: 8px "Space Mono", monospace; letter-spacing: .1em; }
+.throw-result > span { display: block; margin-top: 6px; color: rgba(244, 226, 237, .7); font: 10px/1.45 "Manrope", sans-serif; }
+.throw-result.no-hit { border-left-color: rgba(202, 169, 205, .6); }
+.throw-result.has-hit strong { text-shadow: 0 0 20px rgba(245, 197, 137, .28); }
 .status-line { position: absolute; z-index: 2; left: 50%; bottom: clamp(24px, 3vw, 44px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: 48vw; color: #eedde5; font: 11px "Manrope", sans-serif; letter-spacing: .08em; white-space: nowrap; text-shadow: 0 1px 15px #070313; pointer-events: none; }
 .static-dot, .pulse-dot { width: 5px; height: 5px; border-radius: 50%; background: #dcae81; }
 .pulse-dot { animation: orbital-pulse 1.1s ease-in-out infinite; }
@@ -56,6 +70,8 @@ kbd { font-family: "Space Mono", monospace; color: #f3d6bb; border-bottom: 1px s
 .gesture-tip b { padding: 0 5px; color: #a793ae; }
 .portrait-warning { display: none; }
 @keyframes orbital-pulse { 50% { box-shadow: 0 0 0 7px rgba(220, 174, 129, 0); opacity: .35; } }
-@media (max-width: 680px) { .key-hints { display: none; } .brand-mark { width: 38px; height: 38px; } .brand-lockup h1 { font-size: 19px; } .score-dial { top: 78px; width: min(270px, 70vw); } .score-dial strong { font-size: 21px; } .instrument { bottom: 14px; width: min(242px, 48vw); padding: 13px; } .meter { margin: 8px 0; } .status-line { bottom: 18px; font-size: 9px; max-width: 35vw; overflow: hidden; text-overflow: ellipsis; } .gesture-tip { display: none; } }
+@keyframes beacon-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes result-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 680px) { .key-hints { display: none; } .brand-mark { width: 38px; height: 38px; } .brand-lockup h1 { font-size: 19px; } .score-dial { top: 78px; width: min(270px, 70vw); } .score-dial strong { font-size: 21px; } .instrument { bottom: 14px; width: min(242px, 48vw); padding: 13px; } .meter { margin: 8px 0; } .tutorial-beacon { left: 16px; bottom: 182px; width: min(250px, 44vw); padding-left: 12px; } .tutorial-beacon h2 { font-size: 17px; } .tutorial-beacon > span { font-size: 9px; } .throw-result { top: 155px; width: min(195px, 38vw); } .throw-result strong { font-size: 31px; } .status-line { bottom: 18px; font-size: 9px; max-width: 35vw; overflow: hidden; text-overflow: ellipsis; } .gesture-tip { display: none; } }
 @media (orientation: portrait) and (max-width: 760px) { .brand-bar, .score-dial, .instrument, .status-line, .gesture-tip { display: none; } .portrait-warning { position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: 16px; background: rgba(7, 6, 19, .9); text-align: center; color: #f8e7db; font: 15px "Manrope", sans-serif; } .portrait-warning .brand-mark { width: 88px; height: 88px; border-width: 2px; } .portrait-warning .brand-mark::before { inset: 18px -10px; border-width: 2px; } .portrait-warning .brand-mark::after { inset: 30px -16px; border-width: 2px; } .portrait-warning .brand-mark i { left: 32px; top: 32px; width: 22px; height: 22px; } .portrait-warning p { line-height: 1.8; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

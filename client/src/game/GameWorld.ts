@@ -22,6 +22,7 @@ interface Pin {
 const START = new Vector3(-4.35, 0.45, -3.45);
 const ASTEROID_RADIUS = 3.9;
 const BALL_RADIUS = 0.24;
+const PHYSICS_STEP = 1 / 52;
 const STORAGE_KEY = "orbital-bowl-progress-v1";
 const GOLD = new Color3(0.95, 0.76, 0.44);
 const VIOLET = new Color3(0.79, 0.66, 0.84);
@@ -54,7 +55,10 @@ export class GameWorld {
   private trailPoints: Vector3[] = [];
   private score = 0;
   private throwNumber = 1;
+  private pinsAtLaunch = 10;
+  private pinsFelledThisThrow = 0;
   private flightTime = 0;
+  private physicsAccumulator = 0;
   private resultTimer = 0;
   private status = "軌道を調律する";
   private inputCleanup: (() => void) | null = null;
@@ -105,8 +109,11 @@ export class GameWorld {
     if (this.phase !== "aim") return;
     if (!fromDemo) this.sound.unlock();
     this.phase = "flight";
-    this.status = "軌道を見守る";
+    this.pinsAtLaunch = this.pins.filter((pin) => pin.standing).length;
+    this.pinsFelledThisThrow = 0;
+    this.status = this.throwNumber === 1 && this.score === 0 ? "標準軌道 — ピン列へ向かう" : "軌道を見守る";
     this.flightTime = 0;
+    this.physicsAccumulator = 0;
     this.ball.position.copyFrom(START);
     this.ball.isVisible = true;
     this.trailPoints = [START.clone()];
@@ -124,7 +131,10 @@ export class GameWorld {
     this.settings = { angle: 0, velocity: 4.76, gravity: 1 };
     this.score = 0;
     this.throwNumber = 1;
+    this.pinsAtLaunch = 10;
+    this.pinsFelledThisThrow = 0;
     this.flightTime = 0;
+    this.physicsAccumulator = 0;
     this.status = "新しい軌道を描く";
     this.ball.position.copyFrom(START);
     this.ball.isVisible = true;
@@ -324,13 +334,12 @@ export class GameWorld {
     const radial = START.clone().normalize();
     let velocity = Vector3.Cross(radial, Vector3.Up()).normalize().scale(this.settings.velocity);
     velocity.y += Math.sin((this.settings.angle * Math.PI) / 180) * 1.05;
-    const step = 1 / 52;
     for (let index = 0; index < 230; index += 1) {
       points.push(position.clone());
       const distance = position.length();
       const acceleration = position.clone().normalize().scale(-145 * this.settings.gravity / Math.max(distance * distance, 1));
-      velocity = velocity.add(acceleration.scale(step));
-      position = position.add(velocity.scale(step));
+      velocity = velocity.add(acceleration.scale(PHYSICS_STEP));
+      position = position.add(velocity.scale(PHYSICS_STEP));
       if (distance < ASTEROID_RADIUS + BALL_RADIUS + 0.18 || distance > 19) break;
     }
     return points;
@@ -355,6 +364,16 @@ export class GameWorld {
   }
 
   private updateFlight(delta: number) {
+    this.physicsAccumulator = Math.min(this.physicsAccumulator + delta, PHYSICS_STEP * 5);
+    let stepCount = 0;
+    while (this.physicsAccumulator >= PHYSICS_STEP && this.phase === "flight" && stepCount < 5) {
+      this.integrateFlightStep(PHYSICS_STEP);
+      this.physicsAccumulator -= PHYSICS_STEP;
+      stepCount += 1;
+    }
+  }
+
+  private integrateFlightStep(delta: number) {
     this.flightTime += delta;
     const distance = this.ball.position.length();
     const normal = this.ball.position.clone().normalize();
@@ -377,7 +396,7 @@ export class GameWorld {
     for (const pin of this.pins) {
       if (!pin.standing) continue;
       const distanceToPin = Vector3.Distance(this.ball.position, pin.root.position.add(new Vector3(0, 0.34, 0)));
-      if (distanceToPin < 0.7) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
+      if (distanceToPin < 0.72) this.knockPin(pin, this.ball.position.subtract(pin.root.position));
     }
     if (this.flightTime > 9.5 || this.ball.position.length() > 22 || this.ballVelocity.length() < 0.15) this.finishThrow();
   }
@@ -386,7 +405,8 @@ export class GameWorld {
     pin.standing = false;
     pin.fallAxis = hitDirection.normalize();
     this.score += 100;
-    this.status = "遠くで光がほどける";
+    this.pinsFelledThisThrow = this.pinsAtLaunch - this.pins.filter((item) => item.standing).length;
+    this.status = `${this.pinsFelledThisThrow} PIN${this.pinsFelledThisThrow > 1 ? "S" : ""} DOWN — 遠くで光がほどける`;
     this.sound.hit();
     const flash = MeshBuilder.CreateSphere(`pin-flash-${performance.now()}`, { diameter: 0.38, segments: 6 }, this.scene);
     flash.position.copyFrom(pin.root.position.add(new Vector3(0, 0.42, 0)));
@@ -409,10 +429,11 @@ export class GameWorld {
   private finishThrow(delay = 1.65) {
     if (this.phase !== "flight") return;
     this.phase = "result";
-    this.resultTimer = delay;
-    if (this.pins.every((pin) => !pin.standing)) this.status = "すべてのピンが静かに倒れた";
-    else if (this.pins.some((pin) => !pin.standing)) this.status = "次の軌道を選ぶ";
-    else this.status = "重力を少しだけ変えてみる";
+    this.resultTimer = Math.max(delay, 2.7);
+    this.pinsFelledThisThrow = this.pinsAtLaunch - this.pins.filter((pin) => pin.standing).length;
+    if (this.pins.every((pin) => !pin.standing)) this.status = "STRIKE — すべてのピンが静かに倒れた";
+    else if (this.pinsFelledThisThrow > 0) this.status = `${this.pinsFelledThisThrow} PINS DOWN — 次の軌道を選ぶ`;
+    else this.status = "NO HIT — VELOCITYを少し上げてみる";
     this.emitHud();
   }
 
@@ -432,11 +453,12 @@ export class GameWorld {
     }
     this.throwNumber += 1;
     this.phase = "aim";
-    this.status = "軌道を微調整する";
+    this.status = this.pinsFelledThisThrow > 0 ? "ピンが揺れた — 次の軌道を微調整する" : "VELOCITYを少し上げて、もう一度試す";
     this.ball.position.copyFrom(START);
     this.ball.isVisible = true;
     this.refreshPreview();
     this.emitHud();
+    if (this.demo) window.setTimeout(() => this.launch(true), 900);
   }
 
   private emitHud() {
@@ -445,6 +467,7 @@ export class GameWorld {
       phase: this.phase,
       throwNumber: this.throwNumber,
       pinsStanding: this.pins.filter((pin) => pin.standing).length,
+      pinsFelledThisThrow: this.pinsFelledThisThrow,
       score: this.score,
       bestScore: this.progress.highScore,
       soundEnabled: this.sound.enabled,

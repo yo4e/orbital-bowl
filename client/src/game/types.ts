@@ -11,6 +11,7 @@ export interface GameHudState extends GameSettings {
   phase: GamePhase;
   throwNumber: number;
   pinsStanding: number;
+  pinsFelledThisThrow: number;
   score: number;
   bestScore: number;
   soundEnabled: boolean;
